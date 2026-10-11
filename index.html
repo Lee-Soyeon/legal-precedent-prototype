@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>판례 찾기 프로토타입</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<style>
+  :root {
+    --primary: #007AFF;
+    --primary-dark: #0062CC;
+    --tint: #EAF3FF;
+    --ink: #111111;
+    --sub: #555B62;
+    --dim: #9AA0A6;
+    --line: #E5E7EA;
+    --bg: #F4F4F6;
+    --red: #E8505B;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif; background: #DADCDF; color: var(--ink); letter-spacing: -0.02em; word-break: keep-all; }
+  .app { max-width: 480px; margin: 0 auto; min-height: 100vh; background: var(--bg); padding-bottom: 84px; position: relative; }
+  .icon { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* 상단 탭 */
+  .toptabs { position: sticky; top: 0; z-index: 5; display: flex; align-items: flex-end; gap: 22px; height: 64px; padding: 0 18px; background: #fff; border-bottom: 1px solid var(--line); }
+  .toptabs .tab { position: relative; font-size: 22px; font-weight: 600; color: #B5B9BE; padding-bottom: 12px; border-bottom: 3px solid transparent; }
+  .toptabs .tab.on { color: var(--primary); border-bottom-color: var(--primary); }
+  .toptabs .tab .dot { position: absolute; top: 2px; right: -8px; width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+  .toptabs .bell { margin-left: auto; margin-bottom: 16px; color: var(--ink); flex: none; width: 28px; height: 28px; }
+
+  /* 배너 */
+  .banner { position: relative; overflow: hidden; height: 190px; padding: 46px 24px 0; background: linear-gradient(120deg, #0052D4 0%, #007AFF 50%, #5AC8FA 100%); color: #fff; }
+  .banner .y { font-size: 30px; font-weight: 700; color: #FFE36E; line-height: 1.2; }
+  .banner .w { font-size: 30px; font-weight: 700; line-height: 1.25; }
+  .banner .s { font-size: 15px; font-weight: 500; margin-top: 10px; opacity: .95; }
+  .banner .deco { position: absolute; right: -10px; bottom: -14px; font-size: 130px; opacity: .16; font-weight: 700; }
+
+  /* 질문 상자 */
+  .ask { margin: 22px 16px; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 18px; }
+  .ask textarea { width: 100%; min-height: 150px; border: 0; outline: none; resize: none; font: inherit; font-size: 15px; line-height: 1.6; color: var(--ink); background: transparent; }
+  .ask textarea::placeholder { color: var(--dim); }
+  .btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; font: inherit; font-size: 16px; font-weight: 600; color: #fff; background: var(--primary); border: 0; border-radius: 4px; padding: 11px 0; cursor: pointer; margin-top: 10px; }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .err { color: var(--red); font-size: 13px; margin-top: 8px; }
+
+  /* 피드 */
+  .feedhead { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 18px 12px; }
+  .feedhead h2 { font-size: 22px; font-weight: 600; }
+  .feedhead span { font-size: 14px; color: var(--dim); }
+  .cats { display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px; background: var(--bg); border-top: 1px solid var(--line); border-bottom: 1px solid #C9CCD0; }
+  .cats::-webkit-scrollbar { display: none; }
+  .cat { flex: none; font: inherit; font-size: 15px; color: var(--sub); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 7px 14px; cursor: pointer; }
+  .cat.on { color: var(--primary); background: var(--tint); border-color: var(--primary); }
+  .post { background: #fff; padding: 20px 18px; margin-bottom: 8px; cursor: pointer; }
+  .post .tag { display: inline-block; font-size: 13px; font-weight: 600; color: var(--sub); background: #EEEFF1; border-radius: 999px; padding: 3px 10px; margin-bottom: 8px; }
+  .post .tt { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .post .pv { font-size: 15px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 8px; }
+  .post .mt { font-size: 13px; color: var(--dim); display: flex; gap: 8px; align-items: center; }
+  .post .mt .a { color: var(--sub); font-weight: 600; }
+  .post .mt .a.on { color: var(--primary); }
+  .post .mt .sep { width: 1px; height: 11px; background: var(--line); }
+
+  .fab { position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 6px; font: inherit; font-size: 16px; font-weight: 600; color: #fff; background: var(--primary); border: 0; border-radius: 999px; padding: 12px 22px; box-shadow: 0 6px 18px rgba(0,122,255,.32); cursor: pointer; }
+
+  /* 하단 메뉴 */
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 7; }
+  .nav .inner { max-width: 480px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); background: #fff; border-top: 1px solid var(--line); padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); }
+  .nav a { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12px; color: var(--dim); text-decoration: none; }
+  .nav a.on { color: var(--primary); }
+  .nav svg { width: 26px; height: 26px; fill: currentColor; }
+
+  /* 상세 화면 */
+  .topbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; height: 54px; padding: 0 14px; background: #fff; border-bottom: 1px solid var(--line); }
+  .topbar .t { position: absolute; left: 50%; transform: translateX(-50%); font-size: 17px; font-weight: 600; }
+  .sec { background: #fff; padding: 22px 18px; margin-bottom: 8px; }
+  .sec h2 { font-size: 19px; font-weight: 600; margin-bottom: 4px; }
+  .sec .desc { font-size: 13px; color: var(--sub); margin-bottom: 14px; }
+  .qbox { font-size: 15px; line-height: 1.7; background: var(--bg); border-radius: 12px; padding: 14px 16px; }
+  .hero .badge { display: inline-block; font-size: 12px; font-weight: 600; color: var(--primary); background: var(--tint); border-radius: 6px; padding: 3px 8px; margin-bottom: 10px; }
+  .hero .name { font-size: 20px; font-weight: 600; line-height: 1.45; margin-bottom: 8px; }
+  .hero .meta { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--sub); }
+  .hero .meta .sep { width: 1px; height: 12px; background: var(--line); }
+  .hero .meta .acc { color: var(--primary); font-weight: 600; }
+  .actions { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); margin-top: 18px; padding-top: 16px; text-align: center; }
+  .actions div { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 13px; color: var(--sub); }
+  .actions b { font-size: 18px; color: var(--ink); font-weight: 600; }
+  .band { background: var(--tint); padding: 16px 18px; margin-bottom: 8px; display: flex; gap: 8px; overflow-x: auto; }
+  .band .pill { flex: none; background: #fff; border-radius: 999px; padding: 9px 16px; font-size: 14px; font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .band .pill b { font-weight: 600; margin-left: 4px; }
+  .tabs { position: sticky; top: 54px; z-index: 4; display: grid; grid-template-columns: repeat(4, 1fr); background: #fff; border-bottom: 1px solid var(--line); }
+  .tabs button { background: none; border: 0; font: inherit; font-size: 15px; font-weight: 500; color: var(--dim); padding: 14px 0 12px; border-bottom: 3px solid transparent; cursor: pointer; }
+  .tabs button.on { color: var(--primary); font-weight: 600; border-bottom-color: var(--primary); }
+  .card { border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 12px; background: #fff; }
+  .card .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .card .src { font-size: 13px; font-weight: 600; color: var(--primary); }
+  .card .tag { font-size: 11px; font-weight: 600; border-radius: 6px; padding: 2px 7px; }
+  .card .tag.ok { background: var(--tint); color: var(--primary-dark); }
+  .card .tag.bad { background: #FDE8EA; color: var(--red); }
+  .card p { font-size: 15px; line-height: 1.7; }
+  .card .quote { margin-top: 10px; font-size: 13px; color: var(--sub); background: var(--bg); border-radius: 10px; padding: 10px 12px; line-height: 1.6; }
+  .rank { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .rank:last-child { border-bottom: 0; }
+  .rank .no { flex: none; width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: 600; color: #fff; background: var(--dim); }
+  .rank .no.ok { background: var(--primary); }
+  .rank .tt { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .rank .mm { font-size: 13px; color: var(--sub); line-height: 1.5; }
+  .empty { font-size: 14px; color: var(--dim); padding: 10px 0; }
+  .loading { text-align: center; padding: 40px 18px; background: #fff; font-size: 14px; color: var(--sub); }
+  .tip { font-size: 15px; font-weight: 600; color: var(--ink); min-height: 24px; margin-bottom: 6px; transition: opacity .25s; }
+  .spinner { width: 28px; height: 28px; border: 3px solid var(--tint); border-top-color: var(--primary); border-radius: 50%; margin: 0 auto 12px; animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .notice { display: flex; gap: 8px; font-size: 12.5px; color: var(--sub); line-height: 1.6; background: #fff; padding: 16px 18px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 홈: 법률상담 -->
+  <div id="home">
+    <div class="toptabs">
+      <span class="tab on">법률상담</span>
+      <span class="tab">가격/법률정보<span class="dot"></span></span>
+      <svg class="icon bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+    </div>
+
+    <div class="banner">
+      <div class="y">판례를 찾아</div>
+      <div class="w">근거로 답변드려요!</div>
+      <div class="s">무엇이든 편하게 물어보세요.</div>
+      <div class="deco">⚖</div>
+    </div>
+
+    <div class="ask">
+      <textarea id="q" maxlength="600" placeholder="법률 고민이 있으신가요?&#10;궁금한 사항을 질문해 주세요!"></textarea>
+      <button class="btn" id="go" type="button">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"/></svg>질문하기
+      </button>
+      <div id="err" class="err"></div>
+    </div>
+
+    <div class="feedhead"><h2>피드</h2><span>커뮤니티 실제 질문</span></div>
+    <div class="cats" id="cats"></div>
+    <div id="feed"></div>
+  </div>
+
+  <!-- 상세: 질문 결과 -->
+  <div id="detail" style="display:none;">
+    <div class="topbar">
+      <svg class="icon" viewBox="0 0 24 24" onclick="goHome()" style="cursor:pointer"><path d="M15 5l-7 7 7 7"/></svg>
+      <span class="t">법률상담</span>
+    </div>
+    <div id="thread"></div>
+    <section class="sec"><h2 id="qtitle">내 질문</h2><div class="qbox" id="qview"></div></section>
+    <div class="loading" id="loading"><div class="spinner"></div><div id="tip" class="tip">사연을 꼼꼼히 읽는 중...</div><span style="font-size:12.5px; color:var(--dim)">법령과 판례를 찾고 있어요 · 30초~1분</span></div>
+    <div id="result" style="display:none;">
+      <section class="sec hero">
+        <span class="badge" id="area"></span>
+        <div class="name" id="goal"></div>
+        <div class="meta"><span>관련 법률</span><span class="sep"></span><span class="acc" id="laws"></span></div>
+        <div class="actions">
+          <div><b id="nArt">0</b>법령 조문</div>
+          <div><b id="nCase">0</b>판례 후보</div>
+          <div><b id="nPoint">0</b>답변 근거</div>
+          <div><b id="nOk">0</b>검증 통과</div>
+        </div>
+      </section>
+      <div class="band" id="kw"></div>
+      <div class="tabs" id="tabs">
+        <button class="on" data-tab="answer">답변</button>
+        <button data-tab="law">법령</button>
+        <button data-tab="case">판례</button>
+        <button data-tab="check">검증</button>
+      </div>
+      <section class="sec" data-panel="answer"><h2>근거로 답변해요</h2><div class="desc">찾은 법령·판례 안에서만 답하고, 문단마다 원문을 붙였어요</div><div id="answer"></div>
+        <h2 style="margin-top:22px;">AI가 더 찾아본 것</h2><div class="desc">첫 검색 뒤 빠진 근거를 스스로 판단해 다시 찾았어요 · 최대 3번</div><div id="trace"></div></section>
+      <section class="sec" data-panel="law" style="display:none;"><h2>관련 법령 조문</h2><div class="desc">질문에서 뽑은 법률과 조문 키워드로 찾았어요</div><div id="articles"></div></section>
+      <section class="sec" data-panel="case" style="display:none;"><h2>판례 후보</h2><div class="desc">사연을 판결문 용어로 바꿔 법제처에서 검색했어요</div><div id="cases"></div></section>
+      <section class="sec" data-panel="check" style="display:none;"><h2>근거 검증</h2><div class="desc">출처가 실제로 찾아 온 자료인지, 인용 구절이 원문에 그대로 있는지 확인했어요</div><div id="checks"></div>
+        <h2 style="margin-top:22px;">법제처 원문 재조회</h2><div class="desc">답변 본문에 나온 조문·사건번호가 법제처에 실제로 있는지 다시 조회했어요 · korean-law-mcp</div><div id="recheck"></div></section>
+      <section class="sec"><h2>이어서 물어보기</h2><div class="desc">앞의 사연을 기억한 채로 법령·판례를 다시 찾아 답해요</div>
+        <div class="ask" style="margin:0;">
+          <textarea id="q2" maxlength="600" style="min-height:80px;" placeholder="예: 그럼 임차권등기명령은 어떻게 신청해요?"></textarea>
+          <button class="btn" id="go2" type="button">이어서 물어보기</button>
+          <div id="err2" class="err"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="notice"><span>ⓘ</span><span>법률 자문이 아닌 프로토타입이에요. 법령·판례는 법제처 국가법령정보 공동활용(가이드 샘플 아이디), 분석과 답변은 OpenAI 모델을 써요. 피드는 세이프홈즈·로톡에 공개된 실제 질문을 줄인 거예요.</span></div>
+</div>
+
+<button class="fab" id="fab" type="button" onclick="writePost()">
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"/></svg>글 작성하기
+</button>
+
+<nav class="nav"><div class="inner">
+  <a href="#" onclick="goHome(); return false;"><svg viewBox="0 0 24 24"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z"/></svg>홈</a>
+  <a href="#" class="on" onclick="goHome(); return false;"><svg viewBox="0 0 24 24"><path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-7l-5 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm4 6.5a1 1 0 1 0 0 .01zm4 0a1 1 0 1 0 0 .01zm4 0a1 1 0 1 0 0 .01z"/></svg>법률상담/가격</a>
+  <a href="#" onclick="return false;"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"/></svg>리뷰작성</a>
+  <a href="#" onclick="return false;"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>마이페이지</a>
+</div></nav>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const fmtDate = (d) => (d && d.length === 8 ? `${d.slice(0,4)}.${d.slice(4,6)}.${d.slice(6)}` : d || '');
+
+const POSTS = [
+  { cat: '임대차', tag: '보증금 반환', title: '집주인이 4개월째 연락이 안 돼요', src: '세이프홈즈', text: '계약 만료가 6월 20일인데 4개월 전부터 집주인이랑 연락이 안 돼요. 같은 건물 16세대가 다 같은 집주인이고 저는 보증금 4000만원에 월세 40만원이에요. 보증금 돌려받고 싶은데 어떻게 해야 하나요? 못 받으면 계속 살아야 하나요?' },
+  { cat: '임대차', tag: '경매', title: '법원에서 경매개시결정 우편물이 왔어요', src: '세이프홈즈', text: '전세로 살고 있는데 갑자기 법원에서 경매개시결정 우편물이 왔어요. 집주인은 전화도 문자도 안 받아요. 전입신고랑 확정일자는 해뒀는데 보증금 돌려받을 수 있을까요? 배당요구 종기일 놓치면 못 받나요?' },
+  { cat: '노동', tag: '퇴직금', title: '퇴직금을 계약서 기본급으로만 준대요', src: '로톡', text: '근로계약서엔 기본급 180만원인데 실제로는 매달 350만원 받았고 월급이 밀려서 1300만원이 남았어요. 회사가 퇴직금을 180만원 기준으로 계산했는데 350만원으로 다시 받을 수 있나요?' },
+  { cat: '형사', tag: '모욕', title: '단톡방에 욕 올렸다가 바로 지웠어요', src: '로톡', text: '친한 형이랑 술 마시다 싸웠는데 카톡이랑 전화로 심한 욕을 했고 단톡방에도 욕을 올렸다가 바로 지웠어요. 단톡방 사람들은 다 그 형이랑도 아는 친구들인데 처벌받을 수 있나요?' },
+  { cat: '사기', tag: '차용금', title: '중고거래로 알게 된 사람한테 4천만원 빌려줬어요', src: '로톡', text: '중고거래로 알게 된 사람이 통장이 압류돼서 하루만 빌려주면 갚겠다고 해서 3개월 동안 현금, 상품권, 게임 아이템으로 총 4천만원을 빌려줬어요. 알고 보니 도박 빚이 있었고 계속 날짜를 미뤄요. 사기로 고소할 수 있나요?' },
+];
+const answered = new Set();
+let currentCat = '전체';
+
+function renderCats() {
+  const cats = $('cats'); cats.innerHTML = '';
+  ['전체', '임대차', '노동', '형사', '사기', '가족'].forEach((c) => {
+    const b = el('button', 'cat' + (c === currentCat ? ' on' : ''), c); b.type = 'button';
+    b.onclick = () => { currentCat = c; renderCats(); renderFeed(); };
+    cats.appendChild(b);
+  });
+}
+function renderFeed() {
+  const feed = $('feed'); feed.innerHTML = '';
+  const list = POSTS.filter((p) => currentCat === '전체' || p.cat === currentCat);
+  if (!list.length) { const e = el('div', 'post'); e.appendChild(el('div', 'pv', '아직 이 분야 질문이 없어요.')); feed.appendChild(e); }
+  list.forEach((p) => {
+    const d = el('div', 'post');
+    d.appendChild(el('span', 'tag', p.tag)); d.appendChild(el('div', 'tt', p.title)); d.appendChild(el('div', 'pv', p.text));
+    const mt = el('div', 'mt'); const done = answered.has(p.title);
+    mt.appendChild(el('span', 'a' + (done ? ' on' : ''), done ? 'AI 답변 1' : 'AI 답변 0')); mt.appendChild(el('span', 'sep')); mt.appendChild(el('span', '', p.src));
+    d.appendChild(mt);
+    d.onclick = () => { ask(p.text, p.title); };
+    feed.appendChild(d);
+  });
+}
+renderCats(); renderFeed();
+
+function writePost() { goHome(); window.scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => $('q').focus(), 300); }
+function goHome() { $('detail').style.display = 'none'; $('home').style.display = 'block'; $('fab').style.display = 'flex'; }
+document.querySelectorAll('#tabs button').forEach((b) => b.onclick = () => showTab(b.dataset.tab));
+function showTab(t) {
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
+  document.querySelectorAll('[data-panel]').forEach((p) => p.style.display = p.dataset.panel === t ? 'block' : 'none');
+}
+
+$('go').onclick = () => {
+  const q = $('q').value.trim();
+  if (q.length < 5) { $('err').textContent = '상황을 조금 더 자세히 적어주세요.'; return; }
+  ask(q);
+};
+
+// 기다리는 동안 바뀌는 문구 (실제 처리 순서와 대략 맞춤 · 3초마다)
+const TIPS = [
+  '사연을 꼼꼼히 읽는 중...',
+  '사연을 판결문 말투로 번역하는 중...',
+  '어떤 법이 관련 있는지 법전 목차 넘기는 중...',
+  '법전 먼지 털어내는 중...',
+  '판례 17만 건 사이에서 비슷한 사연 찾는 중...',
+  '대법원 서고 사다리 올라가는 중...',
+  '판시사항에 형광펜 긋는 중...',
+  '“갑”과 “을”이 누구인지 정리하는 중...',
+  '빠진 근거 없나 서랍 한 번 더 뒤지는 중...',
+  '소멸시효 달력 넘겨보는 중...',
+  '제3조의2와 제3조의3 헷갈리지 않게 안경 닦는 중...',
+  '어려운 법률 용어를 쉬운 말로 바꾸는 중...',
+  '인용 구절을 원문과 한 글자씩 대조하는 중...',
+  '지어낸 사건번호 없는지 법제처에 다시 물어보는 중...',
+  '거의 다 왔어요. 답변 다듬는 중...',
+];
+let tipTimer = null;
+function startTips() {
+  // 끝까지 가면 마지막 4개를 돌려 가며 보여줌
+  let n = 0; $('tip').textContent = TIPS[0]; clearInterval(tipTimer);
+  tipTimer = setInterval(() => {
+    n++;
+    const i = n < TIPS.length ? n : TIPS.length - 4 + ((n - TIPS.length) % 4);
+    $('tip').style.opacity = 0;
+    setTimeout(() => { $('tip').textContent = TIPS[i]; $('tip').style.opacity = 1; }, 250);
+  }, 3000);
+}
+function stopTips() { clearInterval(tipTimer); tipTimer = null; }
+
+// 이어서 묻기: 앞선 질문과 답변을 쌓아 두고 다음 질문에 맥락으로 함께 보냄
+let thread = [];
+let last = null;
+function renderThread() {
+  const box = $('thread'); box.innerHTML = '';
+  thread.forEach((t, i) => {
+    const sec = el('section', 'sec');
+    sec.appendChild(el('h2', '', i === 0 ? '처음 질문' : `이어서 물어본 질문 ${i}`));
+    sec.appendChild(el('div', 'qbox', t.question));
+    const c = el('div', 'card'); c.style.marginTop = '10px';
+    c.appendChild(el('p', '', t.points.map((p) => p.text).join(' ') || '근거로 답할 자료를 찾지 못했어요.'));
+    sec.appendChild(c); box.appendChild(sec);
+  });
+  $('qtitle').textContent = thread.length ? `이어서 물어본 질문 ${thread.length}` : '내 질문';
+}
+$('go2').onclick = () => {
+  const q = $('q2').value.trim();
+  if (q.length < 2) { $('err2').textContent = '궁금한 점을 적어주세요.'; return; }
+  ask(q, null, true);
+};
+
+async function ask(question, postTitle, follow) {
+  $('err').textContent = ''; $('err2').textContent = ''; $('go').disabled = true; $('go2').disabled = true;
+  if (follow && last) thread.push(last); else if (!follow) thread = [];
+  const history = thread.map((t) => ({ question: t.question, answer: t.points.map((p) => p.text) }));
+  $('home').style.display = 'none'; $('fab').style.display = 'none'; $('detail').style.display = 'block';
+  renderThread();
+  $('qview').textContent = question; $('result').style.display = 'none'; $('loading').style.display = 'block'; startTips();
+  if (follow) $('loading').scrollIntoView({ behavior: 'smooth', block: 'center' }); else window.scrollTo(0, 0);
+  try {
+    const res = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, history }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '오류');
+    last = { question, points: data.answer?.points || [] };
+    render(data); showTab('answer'); $('result').style.display = 'block'; $('q2').value = '';
+    if (follow) $('qtitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (postTitle) { answered.add(postTitle); renderFeed(); }
+  } catch (e) {
+    if (follow) {
+      thread.pop(); renderThread(); $('qview').textContent = last.question;
+      $('result').style.display = 'block'; $('err2').textContent = e.message;
+    } else { goHome(); $('err').textContent = e.message; window.scrollTo(0, 0); }
+  } finally {
+    $('loading').style.display = 'none'; stopTips(); $('go').disabled = false; $('go2').disabled = false;
+  }
+}
+
+function render(d) {
+  $('area').textContent = d.intent.area || '법률 질문';
+  $('goal').textContent = d.intent.goal || '';
+  $('laws').textContent = (d.intent.laws || []).join(' · ') || '-';
+  const points = d.answer?.points || [];
+  $('nArt').textContent = d.articles.length; $('nCase').textContent = d.cases.length;
+  $('nPoint').textContent = points.length; $('nOk').textContent = d.checks.filter((c) => c.found && c.quoteOk).length;
+
+  const kw = $('kw'); kw.innerHTML = '';
+  (d.searches || []).forEach((s) => { const p = el('span', 'pill', s.keyword); p.appendChild(el('b', '', s.total.toLocaleString())); kw.appendChild(p); });
+
+  const ans = $('answer'); ans.innerHTML = '';
+  if (!points.length) ans.appendChild(el('div', 'empty', '근거로 답할 자료를 찾지 못했어요.'));
+  points.forEach((p, i) => {
+    const c = el('div', 'card'); const h = el('div', 'head');
+    h.appendChild(el('span', 'src', p.source || '근거 없음'));
+    const ck = d.checks[i]; const ok = ck && ck.found && ck.quoteOk;
+    h.appendChild(el('span', 'tag ' + (ok ? 'ok' : 'bad'), ok ? '검증 통과' : '확인 필요'));
+    c.appendChild(h); c.appendChild(el('p', '', p.text));
+    if (p.quote) c.appendChild(el('div', 'quote', `원문 “${p.quote}”`));
+    ans.appendChild(c);
+  });
+  if (d.answer?.notice) ans.appendChild(el('div', 'empty', d.answer.notice));
+
+  const listInto = (box, items, emptyText, map) => {
+    box.innerHTML = '';
+    if (!items.length) box.appendChild(el('div', 'empty', emptyText));
+    items.forEach((it, i) => { const [ok, no, title, ...lines] = map(it, i); const r = el('div', 'rank'); r.appendChild(el('span', 'no' + (ok ? ' ok' : ''), no)); const b = el('div'); b.appendChild(el('div', 'tt', title)); lines.forEach((l) => b.appendChild(el('div', 'mm', l))); r.appendChild(b); box.appendChild(r); });
+  };
+  listInto($('articles'), d.articles, '찾은 조문이 없어요.', (a, i) => [a.used, String(i + 1), a.id, `${a.title || ''}${a.used ? ' · 답변 근거로 사용' : ' · 참고만'}`]);
+  listInto($('cases'), d.cases, '찾은 판례가 없어요.', (c, i) => [c.used, String(i + 1), c.caseNo, `${c.court} · ${fmtDate(c.date)}${c.used ? ' · 답변 근거로 사용' : ''}`, c.name.slice(0, 80) + (c.fromBody ? ' · 판시사항 없어 본문 일부 사용' : '')]);
+  listInto($('trace'), d.trace || [], '첫 검색 자료로 충분하다고 판단했어요.', (t) => [t.added.length > 0, String(t.round), `${t.tool} · ${t.query}`, t.added.length ? `새로 찾음 · ${t.added.join(', ')}` : '새로 찾은 것 없음']);
+  const rc = d.recheck || { items: [] };
+  listInto($('recheck'), rc.items, rc.error ? `재조회 실패 · ${rc.error}` : '답변에 조문·사건번호 인용이 없어요.', (it) => { const [head, ...rest] = it.line.split(' — '); const ok = it.mark === '✓'; return [ok, ok ? '✓' : '!', head.replace(/\s*실존$/, ''), [ok ? '법제처에 실존' : '확인 필요', ...rest].join(' · ')]; });
+  listInto($('checks'), d.checks, '답에 인용된 근거가 없어요.', (c) => { const ok = c.found && c.quoteOk; return [ok, ok ? '✓' : '!', c.source, `${c.found ? '출처 확인' : '출처 없음'} · ${c.quoteOk ? '인용 구절이 원문과 일치' : '인용 구절을 원문에서 못 찾음'}`]; });
+}
+</script>
+</body>
+</html>

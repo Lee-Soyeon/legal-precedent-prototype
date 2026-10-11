@@ -1,0 +1,8 @@
+{
+  "name": "precedent-answer-prototype",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "korean-law-mcp": "4.15.6"
+  }
+}
